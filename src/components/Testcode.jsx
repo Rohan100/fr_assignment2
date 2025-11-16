@@ -32,14 +32,24 @@ export default function GridToPanel() {
   const panelRef = useRef(null);
   const panelContentRef = useRef(null);
   const frameRef = useRef(null);
-
+  const rightPanelRef = useRef(null);
+  const RightPanelContentRef = useRef(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [config, setConfig] = useState(baseConfig);
   const currentItemRef = useRef(null);
+  const [leftSide,setLeftSide]=useState(true)
 
+  const positionPanelBasedOnClick = (clickedItem) => {
+    const centerX = getElementCenter(clickedItem).x;
+    const windowHalf = window.innerWidth / 2;
 
-
+    const isLeftSide = centerX < windowHalf;
+    setLeftSide(isLeftSide)
+    console.log('isLeftSide:', isLeftSide);
+    return isLeftSide;
+    
+  };
 
   const init = () => {
     console.log(12221)
@@ -49,9 +59,6 @@ export default function GridToPanel() {
       item.addEventListener('click', () => onGridItemClick(item));
     });
 
-    const closeBtn = panelContentRef.current?.querySelector('.panel__close');
-    if (closeBtn) closeBtn.addEventListener('click', resetView);
-    console.log(closeBtn)
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && isPanelOpen && !isAnimating) {
         resetView();
@@ -92,7 +99,7 @@ export default function GridToPanel() {
     if (isAnimating) return;
     setIsAnimating(true);
     currentItemRef.current = item;
-
+    const isLeft  = positionPanelBasedOnClick(item);
     // Extract data from the clicked item
     const imgDiv = item.querySelector('.grid__item-image');
     const direction = imgDiv.dataset.direction;
@@ -117,9 +124,12 @@ export default function GridToPanel() {
 
     animateTransition(
       imgDiv,
-      panelRef.current.querySelector('.panel__img'),
+      isLeft ? panelRef.current.querySelector('.panel__img') : rightPanelRef.current.querySelector('.panel__img_right'),
       imgURL,
-      direction
+      direction,
+      isLeft,
+      title,
+      desc
     );
   };
 
@@ -139,7 +149,7 @@ export default function GridToPanel() {
   };
 
 
-  const animateTransition = (startEl, endEl, imgURL,direction) => {
+  const animateTransition = (startEl, endEl, imgURL, direction,isLeft,title,desc) => {
     const clipPaths = getClipPathsForDirection(direction);
     const startRect = startEl.getBoundingClientRect();
     const endRect = endEl.getBoundingClientRect();
@@ -150,7 +160,7 @@ export default function GridToPanel() {
     const fragment = document.createDocumentFragment();
     path.forEach((step, index) => {
       const mover = document.createElement('div');
-      mover.className = 'mover fixed bg-cover bg-center';
+      mover.className = 'mover  fixed bg-cover bg-center';
       Object.assign(mover.style, {
         backgroundImage: imgURL,
         left: `${step.left}px`,
@@ -158,7 +168,7 @@ export default function GridToPanel() {
         width: `${step.width}px`,
         height: `${step.height}px`,
         clipPath: clipPaths.from,
-        zIndex: 1000 + index,
+        zIndex: 100 + index,
       });
       fragment.appendChild(mover);
 
@@ -198,14 +208,25 @@ export default function GridToPanel() {
     });
 
     // Reveal panel after movers
-    revealPanel(endEl,direction);
+    revealPanel(endEl, direction,isLeft,title,desc);
   };
 
-  const revealPanel = (endImg,direction) => {
+  const revealPanel = (endImg, direction,isLeft,title,desc) => {
     const clipPaths = getClipPathsForDirection(direction);
-
-    gsap.set(panelContentRef.current, { opacity: 0 });
-    gsap.set(panelRef.current, { opacity: 1, pointerEvents: 'auto' });
+    let panel = null;
+    let panelContent = null;
+    if(isLeft){
+      panel = panelRef;
+      panelContent = panelContentRef;
+    }else{
+      panel = rightPanelRef;
+      panelContent = RightPanelContentRef;
+    }
+    panelContent.current.querySelector('h3').textContent = title;
+    panelContent.current.querySelector('.desc').textContent = desc;
+    gsap.set(panelContent.current, { opacity: 0 });
+    gsap.set(panel.current, { opacity: 1, pointerEvents: 'auto' });
+    gsap.set(endImg, { zIndex: 1500 });
 
     gsap
       .timeline({
@@ -219,11 +240,11 @@ export default function GridToPanel() {
         { clipPath: clipPaths.hide },
         {
           clipPath: clipPaths.reveal,
-          delay: config.steps * config.stepInterval,
+          delay: config.steps * config.stepInterval ,
         }
       )
       .fromTo(
-        panelContentRef.current,
+        panelContent.current,
         { y: 25 },
         {
           opacity: 1,
@@ -274,6 +295,12 @@ export default function GridToPanel() {
     if (isAnimating) return;
     setIsAnimating(true);
     const allItems = gsap.utils.toArray('.grid__item');
+    let panel = null;
+    if(leftSide){
+      panel = panelRef;
+    }else{
+      panel = rightPanelRef;
+    } 
     gsap
       .timeline({
         defaults: { duration: config.stepDuration, ease: 'expo' },
@@ -282,7 +309,7 @@ export default function GridToPanel() {
           setIsPanelOpen(false);
         },
       })
-      .to(panelRef.current, { opacity: 0, pointerEvents: 'none' })
+      .to(panel.current, { opacity: 0, pointerEvents: 'none' })
       .set(allItems, { opacity: 1, scale: 1 });
   };
 
@@ -307,7 +334,7 @@ export default function GridToPanel() {
     grid 
     bg-white
     gap-(--panel-gap)
-    opacity-0 
+    opacity-0
     pointer-events-none 
     z-10 
     will-change-[transform,clip-path] 
@@ -315,20 +342,58 @@ export default function GridToPanel() {
     grid-rows-[1fr_min-content]
     grid-cols-2
     md:grid-rows-[100%] ">
-        <div ref={panelContentRef} className="panel__content self-end ">
-          <p href="#" className="panel__close text-red-500 cursor-pointer font-semibold">
+
+
+        <div ref={panelContentRef} className="panel__content self-end                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            ">
+          <h3 className='text-sm font-semibold'>Panel Title</h3>
+          <p className='desc text-sm font-semibold'>Panel description...</p>
+          <p href="#" onClick={()=>resetView()} className="panel__close text-red-500 cursor-pointer font-semibold">
             Close
           </p>
-          <h3>Panel Title</h3>
-          <p>Panel description...</p>
         </div>
-        <div className="panel__img 
+        <div className="panel__img
     bg-cover bg-center
     w-full h-auto
     aspect-4/5
     md:h-full 
     md:w-auto 
-    md:max-w-full justify-self-end z-2000"></div>
+    md:max-w-full  justify-self-end z-2000"></div>
+
+      </div>
+
+      <div ref={rightPanelRef} className="panel  fixed 
+    top-0 left-0 
+    m-0 
+    w-full h-screen 
+    p-(--page-padding)
+    grid 
+    bg-white
+    gap-(--panel-gap)
+    opacity-0
+    pointer-events-none 
+    z-10 
+    will-change-[transform,clip-path] 
+    justify-center 
+    grid-rows-[1fr_min-content]
+    grid-cols-2
+    md:grid-rows-[100%] ">
+      
+        <div className="panel__img_right
+    bg-cover bg-center
+    w-full h-auto
+    aspect-4/5
+    md:h-full 
+    md:w-auto 
+    md:max-w-full  justify-self-start  z-2000"></div>
+
+        <div ref={RightPanelContentRef} className="panel__content self-end justify-self-end                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            ">
+          <h3 className='text-sm font-semibold'>Image</h3>
+          <p className='desc text-sm font-semibold'>Model</p>
+          <p href="#" onClick={() => resetView()} className="panel__close text-red-500 cursor-pointer font-semibold">
+            Close
+          </p>
+        </div>
+
 
       </div>
     </div>

@@ -1,6 +1,6 @@
 export default function Header() {
   return (
-    <header className="flex md:flex-row flex-col justify-between font-semibold tracking-tight mb-32 ">
+    <header className="flex md:flex-row text-lg flex-col justify-between font-semibold tracking-tight mb-32 ">
       <p >repeating image transition</p>
       <div >
         <LinkDecoratedText>more info, </LinkDecoratedText>
